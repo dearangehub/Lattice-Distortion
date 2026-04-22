@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import pymatgen as pg
+from pymatgen.core import Composition as pg_Composition
 import sys
 import numpy as np
 
@@ -377,7 +377,7 @@ def get_VEC_SD(elements):
 
 def get_RMSAD(chemform):
    
-    comp = pg.Composition(chemform)
+    comp = pg_Composition(chemform)
     elements = {}
     for element in comp:
         elements[str(element)] = comp.get_atomic_fraction(element)
