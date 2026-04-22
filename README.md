@@ -18,3 +18,25 @@ example usgage:
 
 training.ipynb and training_data.csv contains code and data to reproduce the rmsad model training that was performed in the paper
 -jupyter notebook is needed to open training.ipynb, dependencies are numpy, pymatgen, matplotlib (https://matplotlib.org/), pandas (https://pandas.pydata.org/), and sklearn(https://scikit-learn.org/stable/)
+
+## Batch Prediction
+
+**Setup:**
+```
+conda env create -f environment.yml
+conda activate lattice
+```
+
+**Run batch prediction over full ternary grid:**
+```
+python scripts/run_prediction.py TiNbV
+```
+
+**Plot ternary diagram:**
+```
+python scripts/plot_ternary.py TiNbV
+```
+
+Supported elements: Ti, Zr, Hf, V, Nb, Ta, Mo, W, Re, Ru
+
+> Note: `RMSAD_tool.py` still works standalone as documented above.
