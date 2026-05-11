@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Usage: python scripts/run_prediction.py TiNbV TiNbMo ...
+Usage: python scripts/run_prediction.py TiNbV TiNbMo
+       python scripts/run_prediction.py TiNbVMo --step 5
+       python scripts/run_prediction.py TiNb --step 1
 """
+import argparse
 import pathlib
 import sys
 
@@ -10,17 +13,31 @@ sys.path.insert(0, str(repo_root))
 
 from rmsad.predict import predict_system  # noqa: E402
 
+# Rough composition counts at 1% step to warn the user
+_APPROX_COUNTS = {2: 99, 3: 4753, 4: 161700, 5: 4421275}
+
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python scripts/run_prediction.py SYSTEM [SYSTEM ...]")
-        print("Example: python scripts/run_prediction.py TiNbV TiNbMo")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Predict RMSAD over a full composition grid for one or more alloy systems."
+    )
+    parser.add_argument("systems", nargs="+", help="System names, e.g. TiNbV TiNbVMo")
+    parser.add_argument(
+        "--step",
+        type=int,
+        default=1,
+        metavar="PCT",
+        help="Composition step size in at.%% (default: 1). "
+             "Recommended: 1 for binary/ternary, 5 for quaternary, 10 for quinary+.",
+    )
+    args = parser.parse_args()
 
-    systems = sys.argv[1:]
-    for system in systems:
-        print(f"\n=== Predicting RMSAD for {system} ===")
-        predict_system(system)
+    if args.step < 1 or 100 % args.step != 0:
+        parser.error(f"--step must be a divisor of 100 (got {args.step})")
+
+    for system in args.systems:
+        print(f"\n=== Predicting RMSAD for {system} (step={args.step}%) ===")
+        predict_system(system, step=args.step)
 
 
 if __name__ == "__main__":
