@@ -20,7 +20,7 @@ env/
 venv/
 
 # Data outputs (keep .gitkeep)
-data/output/*.csv
+data/output/grid_*.csv
 data/output/*.png
 
 # OS
