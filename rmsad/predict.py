@@ -25,7 +25,7 @@ def _find_gamma_usf_col(df: pd.DataFrame) -> str | None:
     """Return the gamma_usf column name from a d-parameter HTP dataframe."""
     for col in df.columns:
         low = col.lower()
-        if "usf" in low or ("gamma" in low and "usf" in low):
+        if "usf" in low or "gsf" in low or ("gamma" in low and "usf" in low):
             return col
     for col in df.columns:
         low = col.lower()
