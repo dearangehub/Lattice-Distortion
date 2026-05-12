@@ -24,8 +24,12 @@ Owner: dearangehub (fork of tandocca/Lattice-Distortion)
 - This agent runs in Anthropic's cloud (Linux, `/home/user/`), NOT on the
   user's local Windows machine (`C:\Users\sg3896\`).
 - The user's local venv is `dparameter` (Python, Windows).
-- Files generated here are NOT visible in Windows Explorer — push to GitHub
-  or instruct the user to run scripts locally.
+- IMPORTANT: Files generated in this cloud session are NOT visible in Windows
+  Explorer and cannot be run in the user's local venv.
+- Workflow: agent writes/pushes code to GitHub → user runs `git pull` and
+  executes scripts locally in the `dparameter` venv.
+- To run code directly on the user's machine, the user must install
+  Claude Code CLI on Windows and run `claude` from their repo directory.
 - The user's d-parameter output is at:
   `C:\Users\sg3896\Research\dparameter\data\output\`
 
@@ -42,7 +46,7 @@ rmsad/
   predict.py           — predict_system(): RMSAD + mu + optional YS via gamma_usf
 scripts/
   run_prediction.py    — CLI: python scripts/run_prediction.py SYSTEM --dparameter-dir DIR
-  plot_ternary.py      — ternary heatmap, defaults to YS_GPa, falls back to RMSAD
+  plot_ternary.py      — ternary heatmap of YS_GPa with 900 MPa contour line
 data/
   input/               — (empty, gitkeep)
   output/              — grid_*.csv (gitignored), predict_*_RMSAD.csv (tracked)
@@ -78,14 +82,13 @@ YS_GPa = 0.29 [Å/eV] × mu_GPa × gamma_usf [J/m²] × RMSAD [Å]
 ```
 
 ### Plot ternary diagram (locally)
+Always plots YS_GPa. Requires YS_GPa column in the predict CSV.
 ```bash
-python scripts/plot_ternary.py TiNbV TiNbMo          # YS_GPa by default
-python scripts/plot_ternary.py TiNbV --column RMSAD
-python scripts/plot_ternary.py TiNbV --column mu_GPa
-python scripts/plot_ternary.py TiNbV --column gamma_usf
-python scripts/plot_ternary.py TiNbV --contour
+python scripts/plot_ternary.py TiNbV TiNbMo           # smooth fill, 900 MPa contour
+python scripts/plot_ternary.py TiNbV --ys-contour 900 # contour line at 900 MPa (default)
+python scripts/plot_ternary.py TiNbV --contour         # contour fill style
 ```
-Output saved to `data/output/ternary_{systems}_{column}.png`.
+Output saved to `data/output/ternary_YS_{systems}.png`.
 
 ### Supported elements
 Ti, Zr, Hf, V, Nb, Ta, Mo, W, Re, Ru
@@ -99,8 +102,7 @@ Ti, Zr, Hf, V, Nb, Ta, Mo, W, Re, Ru
 
 ## Composition grid sizes
 | System | Step | Compositions |
-|---|---|
----|
+|---|---|---|
 | Binary | 1% | 99 |
 | Ternary | 1% | 4,851 |
 | Quaternary | 5% | 969 |
