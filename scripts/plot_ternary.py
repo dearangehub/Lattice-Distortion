@@ -73,11 +73,11 @@ def _draw_frame(ax, elements):
     ax.text(mid_bottom[0], mid_bottom[1] - 0.10, f"{el2} at.%", ha="center", va="top", fontsize=9)
 
     mid_left = (v_top + v_bl) / 2
-    ax.text(mid_left[0] - 0.08, mid_left[1], f"{el1} at.%", ha="center", va="center",
+    ax.text(mid_left[0] - 0.16, mid_left[1], f"{el1} at.%", ha="center", va="center",
             fontsize=9, rotation=math.degrees(math.atan2(*(v_bl - v_top)[::-1])))
 
     mid_right = (v_top + v_br) / 2
-    ax.text(mid_right[0] + 0.08, mid_right[1], f"{el3} at.%", ha="center", va="center",
+    ax.text(mid_right[0] + 0.16, mid_right[1], f"{el3} at.%", ha="center", va="center",
             fontsize=9, rotation=math.degrees(math.atan2(*(v_br - v_top)[::-1])))
 
     ax.text(v_top[0], v_top[1] + 0.04, el1, ha="center", va="bottom", fontsize=11, fontweight="bold")
@@ -85,7 +85,7 @@ def _draw_frame(ax, elements):
     ax.text(v_br[0] + 0.04, v_br[1] - 0.04, el3, ha="left", va="top", fontsize=11, fontweight="bold")
 
 
-def plot_system(system: str, ax, contour_fill: bool, ys_contour_gpa: float,
+def plot_system(system: str, ax, contour_fill: bool, ys_contour_mpa: float,
                 vmin=None, vmax=None):
     csv_path = OUTPUT_DIR / f"predict_{system}_RMSAD.csv"
     if not csv_path.exists():
@@ -107,7 +107,7 @@ def plot_system(system: str, ax, contour_fill: bool, ys_contour_gpa: float,
     a = df[el1].values
     b = df[el2].values
     c = df[el3].values
-    z = df["YS_GPa"].values
+    z = df["YS_GPa"].values * 1000  # convert GPa -> MPa for display
 
     mask = ~np.isnan(z)
     a, b, c, z = a[mask], b[mask], c[mask], z[mask]
@@ -120,14 +120,13 @@ def plot_system(system: str, ax, contour_fill: bool, ys_contour_gpa: float,
     else:
         sc = ax.tripcolor(triang, z, cmap="YlOrRd", shading="gouraud", vmin=vmin, vmax=vmax)
 
-    # Labelled contour line at the requested YS threshold
-    if ys_contour_gpa is not None and vmin <= ys_contour_gpa <= vmax:
-        cs = ax.tricontour(triang, z, levels=[ys_contour_gpa], colors=["black"], linewidths=1.5)
-        label_mpa = int(round(ys_contour_gpa * 1000))
-        ax.clabel(cs, fmt=f"{label_mpa} MPa", fontsize=8, inline=True)
+    # Labelled contour line at the requested YS threshold (already in MPa)
+    if ys_contour_mpa is not None and vmin <= ys_contour_mpa <= vmax:
+        cs = ax.tricontour(triang, z, levels=[ys_contour_mpa], colors=["black"], linewidths=1.5)
+        ax.clabel(cs, fmt=f"{int(ys_contour_mpa)} MPa", fontsize=8, inline=True)
 
     _draw_frame(ax, elements)
-    ax.set_xlim(-0.15, 1.15)
+    ax.set_xlim(-0.20, 1.20)
     ax.set_ylim(-0.15, math.sqrt(3) / 2 + 0.10)
     ax.set_aspect("equal")
     ax.axis("off")
@@ -152,7 +151,7 @@ def main():
     )
     args = parser.parse_args()
 
-    ys_contour_gpa = args.ys_contour / 1000.0  # MPa -> GPa
+    ys_contour_mpa = args.ys_contour  # already in MPa
 
     n = len(args.systems)
     fig = plt.figure(figsize=(5 * n + 1, 5))
@@ -160,23 +159,23 @@ def main():
     axes = [fig.add_subplot(gs[0, i]) for i in range(n)]
     cax  = fig.add_subplot(gs[0, n])
 
-    # Shared colour range across all systems
+    # Shared colour range across all systems (in MPa)
     all_vals = []
     for system in args.systems:
         csv_path = OUTPUT_DIR / f"predict_{system}_RMSAD.csv"
         if csv_path.exists():
             df = pd.read_csv(csv_path)
             if "YS_GPa" in df.columns:
-                all_vals.extend(df["YS_GPa"].dropna().values)
+                all_vals.extend((df["YS_GPa"].dropna().values * 1000).tolist())
     vmin = min(all_vals) if all_vals else 0
     vmax = max(all_vals) if all_vals else 1
 
     sc = None
     for ax, system in zip(axes, args.systems):
-        sc = plot_system(system, ax, args.contour, ys_contour_gpa, vmin=vmin, vmax=vmax)
+        sc = plot_system(system, ax, args.contour, ys_contour_mpa, vmin=vmin, vmax=vmax)
 
     if sc is not None:
-        fig.colorbar(sc, cax=cax, label="Yield Strength (GPa)")
+        fig.colorbar(sc, cax=cax, label="Yield Strength (MPa)")
 
     fig.suptitle("Yield Strength (YS) — Ternary Prediction", fontsize=13, y=1.01)
     plt.tight_layout()
