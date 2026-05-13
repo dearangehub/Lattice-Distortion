@@ -49,23 +49,30 @@ def _draw_frame(ax, elements):
     tick_len = 0.02
     for i in range(1, 10):
         t = i / 10.0
-        label = f"{int(t * 100)}%"
+        # Bottom and left edges traverse *away* from their labeled vertex, so the
+        # labeled element's concentration equals (1-t)*100% at parameter t.
+        # The right edge traverses away from Ti toward el3, so el3 = t*100%.
+        label_dec = f"{int((1 - t) * 100)}%"  # decreasing: 90%->10% away from vertex
+        label_inc = f"{int(t * 100)}%"          # increasing: 10%->90% toward vertex
 
+        # Bottom edge: el2 corner (left) -> el3 corner (right); shows el2 at.%
         p = v_bl + t * (v_br - v_bl)
         ax.plot([p[0], p[0]], [p[1], p[1] - tick_len], "k-", lw=0.5)
-        ax.text(p[0], p[1] - 0.04, label, ha="center", va="top", fontsize=6)
+        ax.text(p[0], p[1] - 0.04, label_dec, ha="center", va="top", fontsize=6)
 
+        # Left edge: el1 corner (top) -> el2 corner (bottom-left); shows el1 at.%
         p = v_top + t * (v_bl - v_top)
         edge = v_bl - v_top
         perp = np.array([-edge[1], edge[0]]) / np.linalg.norm([-edge[1], edge[0]])
         ax.plot([p[0], p[0] + tick_len * perp[0]], [p[1], p[1] + tick_len * perp[1]], "k-", lw=0.5)
-        ax.text(p[0] - 0.04, p[1], label, ha="right", va="center", fontsize=6)
+        ax.text(p[0] - 0.04, p[1], label_dec, ha="right", va="center", fontsize=6)
 
+        # Right edge: el1 corner (top) -> el3 corner (bottom-right); shows el3 at.%
         p = v_top + t * (v_br - v_top)
         edge = v_br - v_top
         perp = np.array([edge[1], -edge[0]]) / np.linalg.norm([edge[1], -edge[0]])
         ax.plot([p[0], p[0] + tick_len * perp[0]], [p[1], p[1] + tick_len * perp[1]], "k-", lw=0.5)
-        ax.text(p[0] + 0.04, p[1], label, ha="left", va="center", fontsize=6)
+        ax.text(p[0] + 0.04, p[1], label_inc, ha="left", va="center", fontsize=6)
 
     ax.add_patch(plt.Polygon([v_top, v_bl, v_br], fill=False, edgecolor="black", lw=1))
 
