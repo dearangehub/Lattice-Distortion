@@ -49,11 +49,9 @@ def _draw_frame(ax, elements):
     tick_len = 0.02
     for i in range(1, 10):
         t = i / 10.0
-        # Bottom and left edges traverse *away* from their labeled vertex, so the
-        # labeled element's concentration equals (1-t)*100% at parameter t.
-        # The right edge traverses away from el1 toward el3, so el3 = t*100%.
-        label_dec = f"{int((1 - t) * 100)}%"  # decreasing: 90%->10% away from vertex
-        label_inc = f"{int(t * 100)}%"          # increasing: 10%->90% toward vertex
+        # Use integer arithmetic to avoid float truncation (e.g. int(0.1*100) == 9).
+        label_dec = f"{(10 - i) * 10}%"  # 90%, 80%, ..., 10%  (away from vertex)
+        label_inc = f"{i * 10}%"           # 10%, 20%, ..., 90%  (toward vertex)
 
         # Bottom edge: el2 corner (left) -> el3 corner (right); shows el2 at.%
         p = v_bl + t * (v_br - v_bl)
