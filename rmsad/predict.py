@@ -57,6 +57,8 @@ def _merge_htp(grid_df: pd.DataFrame, system: str, dparameter_dir: pathlib.Path)
     merged = grid_df.merge(htp[merge_cols + [gamma_col]], on=merge_cols, how="left")
     merged = merged.rename(columns={gamma_col: "gamma_usf"})
     merged["YS_GPa"] = _YS_CONSTANT * merged["mu_GPa"] * merged["gamma_usf"] * merged["RMSAD"]
+    # Negative mu_GPa is non-physical; null out YS for those rows
+    merged.loc[merged["mu_GPa"] <= 0, "YS_GPa"] = float("nan")
 
     missing = merged["gamma_usf"].isna().sum()
     if missing:

@@ -3,10 +3,10 @@
 Usage:
   python scripts/plot_ternary.py TiNbV
   python scripts/plot_ternary.py TiNbV TiNbMo
-  python scripts/plot_ternary.py TiNbV --ys-contour 900
   python scripts/plot_ternary.py TiNbV --contour
 
-Plots YS_GPa on a ternary diagram with a labelled contour line at --ys-contour MPa.
+Plots YS_GPa on a ternary diagram with contour lines every 100 MPa.
+Regions with non-physical negative YS (from negative mu_GPa) are excluded.
 Requires predict_{system}_RMSAD.csv to contain a YS_GPa column
 (run run_prediction.py with --dparameter-dir first).
 
@@ -51,7 +51,7 @@ def _draw_frame(ax, elements):
         t = i / 10.0
         # Bottom and left edges traverse *away* from their labeled vertex, so the
         # labeled element's concentration equals (1-t)*100% at parameter t.
-        # The right edge traverses away from Ti toward el3, so el3 = t*100%.
+        # The right edge traverses away from el1 toward el3, so el3 = t*100%.
         label_dec = f"{int((1 - t) * 100)}%"  # decreasing: 90%->10% away from vertex
         label_inc = f"{int(t * 100)}%"          # increasing: 10%->90% toward vertex
 
@@ -92,8 +92,7 @@ def _draw_frame(ax, elements):
     ax.text(v_br[0] + 0.04, v_br[1] - 0.04, el3, ha="left", va="top", fontsize=11, fontweight="bold")
 
 
-def plot_system(system: str, ax, contour_fill: bool, ys_contour_mpa: float,
-                vmin=None, vmax=None):
+def plot_system(system: str, ax, contour_fill: bool, vmin=None, vmax=None):
     csv_path = OUTPUT_DIR / f"predict_{system}_RMSAD.csv"
     if not csv_path.exists():
         raise FileNotFoundError(
@@ -116,7 +115,8 @@ def plot_system(system: str, ax, contour_fill: bool, ys_contour_mpa: float,
     c = df[el3].values
     z = df["YS_GPa"].values * 1000  # convert GPa -> MPa for display
 
-    mask = ~np.isnan(z)
+    # Exclude NaN and non-physical negative values (negative mu_GPa artifact)
+    mask = ~np.isnan(z) & (z > 0)
     a, b, c, z = a[mask], b[mask], c[mask], z[mask]
 
     x, y = _ternary_to_xy(a, b, c)
@@ -127,10 +127,15 @@ def plot_system(system: str, ax, contour_fill: bool, ys_contour_mpa: float,
     else:
         sc = ax.tripcolor(triang, z, cmap="YlOrRd", shading="gouraud", vmin=vmin, vmax=vmax)
 
-    # Labelled contour line at the requested YS threshold (already in MPa)
-    if ys_contour_mpa is not None and vmin <= ys_contour_mpa <= vmax:
-        cs = ax.tricontour(triang, z, levels=[ys_contour_mpa], colors=["black"], linewidths=1.5)
-        ax.clabel(cs, fmt=f"{int(ys_contour_mpa)} MPa", fontsize=8, inline=True)
+    # Contour lines every 100 MPa across the shared data range
+    c_start = math.ceil(max(vmin, 0) / 100) * 100
+    if c_start == 0:
+        c_start = 100
+    contour_levels = np.arange(c_start, vmax, 100)
+    if len(contour_levels) > 0:
+        cs = ax.tricontour(triang, z, levels=contour_levels,
+                           colors=["black"], linewidths=0.6, alpha=0.7)
+        ax.clabel(cs, fmt="%d MPa", fontsize=6, inline=True)
 
     _draw_frame(ax, elements)
     ax.set_xlim(-0.20, 1.20)
@@ -145,20 +150,11 @@ def main():
     parser = argparse.ArgumentParser(description="Plot YS ternary diagram for RHEA systems")
     parser.add_argument("systems", nargs="+", help="System names, e.g. TiNbV TiNbMo")
     parser.add_argument(
-        "--ys-contour",
-        type=float,
-        default=900,
-        metavar="MPa",
-        help="Draw a labelled contour line at this YS value in MPa (default: 900)",
-    )
-    parser.add_argument(
         "--contour",
         action="store_true",
         help="Use contour fill instead of smooth tripcolor",
     )
     args = parser.parse_args()
-
-    ys_contour_mpa = args.ys_contour  # already in MPa
 
     n = len(args.systems)
     fig = plt.figure(figsize=(5 * n + 1, 5))
@@ -166,20 +162,21 @@ def main():
     axes = [fig.add_subplot(gs[0, i]) for i in range(n)]
     cax  = fig.add_subplot(gs[0, n])
 
-    # Shared colour range across all systems (in MPa)
+    # Shared colour range across all systems — positive values only (in MPa)
     all_vals = []
     for system in args.systems:
         csv_path = OUTPUT_DIR / f"predict_{system}_RMSAD.csv"
         if csv_path.exists():
             df = pd.read_csv(csv_path)
             if "YS_GPa" in df.columns:
-                all_vals.extend((df["YS_GPa"].dropna().values * 1000).tolist())
+                vals = df["YS_GPa"].dropna().values * 1000
+                all_vals.extend(vals[vals > 0].tolist())
     vmin = min(all_vals) if all_vals else 0
     vmax = max(all_vals) if all_vals else 1
 
     sc = None
     for ax, system in zip(axes, args.systems):
-        sc = plot_system(system, ax, args.contour, ys_contour_mpa, vmin=vmin, vmax=vmax)
+        sc = plot_system(system, ax, args.contour, vmin=vmin, vmax=vmax)
 
     if sc is not None:
         fig.colorbar(sc, cax=cax, label="Yield Strength (MPa)")
