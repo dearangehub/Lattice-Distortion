@@ -5,7 +5,7 @@ import pandas as pd
 repo_root = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(repo_root))
 
-from RMSAD_tool import get_RMSAD, get_shear_modulus_from_chemform  # noqa: E402
+from RMSAD_tool import get_RMSAD, element_properties  # noqa: E402
 
 from rmsad.grid import generate_grid, ALL_ELEMENTS
 
@@ -19,6 +19,22 @@ def row_to_chemform(row: pd.Series) -> str:
         if val > 0:
             parts.append(f"{el}{val:.6f}")
     return "".join(parts)
+
+
+def _mu_voigt(row: pd.Series) -> float:
+    """Composition-weighted Voigt upper-bound shear modulus in GPa.
+
+    G_Voigt = (C11 - C12 + 3*C44) / 5  per element, mixed via Vegard's law.
+    Always positive (C44 > 0 for all supported elements), avoiding the
+    negative-mu artifact that VRH produces at Ti/Zr-rich corners.
+    """
+    mu = 0.0
+    for el in ALL_ELEMENTS:
+        x = float(row[el])
+        if x > 0:
+            p = element_properties[el]
+            mu += x * (p["C11"] - p["C12"] + 3 * p["C44"]) / 5
+    return mu
 
 
 def _find_gamma_usf_col(df: pd.DataFrame) -> str | None:
@@ -57,8 +73,6 @@ def _merge_htp(grid_df: pd.DataFrame, system: str, dparameter_dir: pathlib.Path)
     merged = grid_df.merge(htp[merge_cols + [gamma_col]], on=merge_cols, how="left")
     merged = merged.rename(columns={gamma_col: "gamma_usf"})
     merged["YS_GPa"] = _YS_CONSTANT * merged["mu_GPa"] * merged["gamma_usf"] * merged["RMSAD"]
-    # Negative mu_GPa is non-physical; null out YS for those rows
-    merged.loc[merged["mu_GPa"] <= 0, "YS_GPa"] = float("nan")
 
     missing = merged["gamma_usf"].isna().sum()
     if missing:
@@ -88,7 +102,7 @@ def predict_system(
     for i, row in grid_df.iterrows():
         chemform = row_to_chemform(row)
         rmsad_vals.append(get_RMSAD(chemform))
-        mu_vals.append(get_shear_modulus_from_chemform(chemform))
+        mu_vals.append(_mu_voigt(row))
         if (i + 1) % 500 == 0:
             print(f"  {i + 1}/{total} compositions processed...")
 
