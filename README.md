@@ -45,7 +45,7 @@ python scripts/run_prediction.py TiNb
 python scripts/run_prediction.py ZrHfTaNbMo --step 10
 ```
 
-Each run produces a CSV in `data/output/` with columns for element fractions, **RMSAD (Å)**, and **mu_GPa** (isotropic shear modulus via VRH + Vegard's law).
+Each run produces a CSV in `data/output/` with columns for element fractions, **RMSAD (Å)**, and **mu_GPa** (Voigt shear modulus via Vegard's law).
 
 | System type | Recommended step | Approx. compositions |
 |---|---|---|
@@ -54,14 +54,37 @@ Each run produces a CSV in `data/output/` with columns for element fractions, **
 | Quaternary | 5% | 969 |
 | Quinary | 10% | 126 |
 
-**Output files:**
+**Include yield strength (YS_GPa):**
+
+Pass `--dparameter-dir` pointing to the folder containing `predict_{system}_HTP.csv` files from the d-parameter pipeline. `gamma_usf` is auto-detected and merged; YS is computed via Eq. 3 of Tandoc et al. 2023.
 ```
-data/output/grid_TiNbV.csv                  ← composition grid
-data/output/predict_TiNbV_RMSAD.csv         ← grid + RMSAD + mu_GPa
-data/output/predict_TiNbVMo_RMSAD_step5.csv ← step suffix added when step > 1
+python scripts/run_prediction.py TiNbV --dparameter-dir path/to/dparameter/output
+python scripts/run_prediction.py TiNbV TiNbMo --step 1 --dparameter-dir path/to/dparameter/output
 ```
 
-**Plot ternary diagram** (ternary systems only):
+**Predict for a custom list of compositions:**
+
+Create a CSV with element fraction columns (any subset of Ti, Zr, Hf, V, Nb, Ta, Mo, W, Re, Ru; missing elements default to 0). Pass it with `--compositions-csv`. One row = one composition; a single row works too.
+```
+# my_compositions.csv:
+# Ti,Nb,V
+# 0.25,0.25,0.50
+# 0.33,0.33,0.34
+
+python scripts/run_prediction.py TiNbV --compositions-csv my_compositions.csv
+python scripts/run_prediction.py TiNbV --compositions-csv my_compositions.csv --dparameter-dir path/to/dparameter/output
+```
+> Note: for the YS merge to succeed, composition fractions must exactly match the step grid used by the d-parameter pipeline (e.g. multiples of 0.01 for a 1% grid).
+
+**Output files:**
+```
+data/output/grid_TiNbV.csv                   ← composition grid
+data/output/predict_TiNbV_RMSAD.csv          ← RMSAD + mu_GPa (+ YS_GPa if --dparameter-dir given)
+data/output/predict_TiNbVMo_RMSAD_step5.csv  ← step suffix when step > 1
+data/output/predict_TiNbV_RMSAD_custom.csv   ← output when --compositions-csv is used
+```
+
+**Plot YS ternary diagram** (ternary systems only, requires YS_GPa column):
 ```
 python scripts/plot_ternary.py TiNbV
 
@@ -71,6 +94,7 @@ python scripts/plot_ternary.py TiNbV TiNbMo
 # Contour fill instead of smooth interpolation
 python scripts/plot_ternary.py TiNbV --contour
 ```
+Contour lines are drawn automatically every 100 MPa. Output saved to `data/output/ternary_YS_TiNbV.png`.
 
 **Supported elements:** Ti, Zr, Hf, V, Nb, Ta, Mo, W, Re, Ru
 
