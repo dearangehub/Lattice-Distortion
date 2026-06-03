@@ -87,11 +87,23 @@ def predict_system(
     output_dir: str | pathlib.Path = "data/output",
     step: int = 1,
     dparameter_dir: str | pathlib.Path | None = None,
+    compositions_csv: str | pathlib.Path | None = None,
 ) -> pd.DataFrame:
     output_dir = pathlib.Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    grid_df = generate_grid(system, output_dir, step)
+    if compositions_csv is not None:
+        grid_df = pd.read_csv(compositions_csv)
+        for el in ALL_ELEMENTS:
+            if el not in grid_df.columns:
+                grid_df[el] = 0.0
+        if "index" not in grid_df.columns:
+            grid_df.insert(0, "index", range(len(grid_df)))
+        if "sample" not in grid_df.columns:
+            grid_df.insert(1, "sample", grid_df.apply(row_to_chemform, axis=1))
+        print(f"Custom grid: {len(grid_df)} compositions from {pathlib.Path(compositions_csv).name}")
+    else:
+        grid_df = generate_grid(system, output_dir, step)
 
     rmsad_vals = []
     mu_vals = []
@@ -113,7 +125,12 @@ def predict_system(
     if dparameter_dir is not None:
         grid_df = _merge_htp(grid_df, system, pathlib.Path(dparameter_dir))
 
-    suffix = f"_step{step}" if step != 1 else ""
+    if compositions_csv is not None:
+        suffix = "_custom"
+    elif step != 1:
+        suffix = f"_step{step}"
+    else:
+        suffix = ""
     out_path = output_dir / f"predict_{system}_RMSAD{suffix}.csv"
     grid_df.to_csv(out_path, index=False)
 

@@ -4,6 +4,7 @@ Usage:
   python scripts/run_prediction.py TiNbV TiNbMo
   python scripts/run_prediction.py TiNbVMo --step 5
   python scripts/run_prediction.py TiNbV --dparameter-dir ~/Research/dparameter/data/output
+  python scripts/run_prediction.py TiNbV --compositions-csv my_compositions.csv
 """
 import argparse
 import pathlib
@@ -25,7 +26,7 @@ def main():
         type=int,
         default=1,
         metavar="PCT",
-        help="Composition step size in at.%% (default: 1). "
+        help="Composition step size in at.%%%% (default: 1). "
              "Recommended: 1 for binary/ternary, 5 for quaternary, 10 for quinary+.",
     )
     parser.add_argument(
@@ -36,14 +37,31 @@ def main():
         help="Path to d-parameter output directory containing predict_{system}_HTP.csv files. "
              "If provided, gamma_usf is merged and YS_GPa is computed.",
     )
+    parser.add_argument(
+        "--compositions-csv",
+        type=pathlib.Path,
+        default=None,
+        metavar="CSV",
+        help="CSV file with custom compositions to predict (one row per composition). "
+             "Must have element fraction columns (e.g. Ti, Nb, V). "
+             "Requires exactly one SYSTEM name (used for output filename and YS merge).",
+    )
     args = parser.parse_args()
 
     if args.step < 1 or 100 % args.step != 0:
         parser.error(f"--step must be a divisor of 100 (got {args.step})")
 
+    if args.compositions_csv is not None and len(args.systems) != 1:
+        parser.error("--compositions-csv requires exactly one system name")
+
     for system in args.systems:
         print(f"\n=== Predicting for {system} (step={args.step}%) ===")
-        predict_system(system, step=args.step, dparameter_dir=args.dparameter_dir)
+        predict_system(
+            system,
+            step=args.step,
+            dparameter_dir=args.dparameter_dir,
+            compositions_csv=args.compositions_csv,
+        )
 
 
 if __name__ == "__main__":
